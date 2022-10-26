@@ -1,1 +1,5 @@
-Flask==2.0.3
+Flask==2.2.2
+Flask-Session==0.4.0
+Werkzeug==2.2.2
+Flask_Redis==0.4.0
+redis==4.3.4
