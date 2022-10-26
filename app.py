@@ -1,10 +1,12 @@
 import os
+import uuid
 
 import redis
 from flask import Flask, Blueprint, request, flash, redirect, url_for, session
 from flask_session import Session
 from api import response_generator as r
 import json
+from broker import message_broker as broker
 
 ALLOWED_EXTENSIONS = {'txt', 'json'}
 
@@ -19,6 +21,12 @@ app.config['SESSION_REDIS'] = redis.from_url('redis://localhost:6379')
 sess = Session(app)
 
 
+def uuid_gen():
+    if 'uid' not in session:
+        session['uid'] = uuid.uuid4()
+    return session['uid']
+
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -26,7 +34,8 @@ def allowed_file(filename):
 
 @app.route('/', methods=["GET"])
 def index():
-    return r.respond({"test": True})
+    # session['uid'] = uuid_gen.uuid4()
+    return r.respond({"session": str(uuid_gen())})
 
 
 @app.route('/upload', methods=['POST'])
@@ -57,6 +66,22 @@ def transform():
         file = str(session['file'])
         file = file.split(transform_json['seperator'])
         return r.respond({"fileParts": file})
+
+
+@app.route('/send', methods=['POST'])
+def send():
+    message = request.json['message']
+    service = request.json['service']
+    broker.produce(uuid_gen(), service, message)
+    return r.respond({"requestSend": True})
+
+
+@app.route('/receive', methods=['POST'])
+def receive():
+    uuid_gen()
+    print(request.json)
+
+    return r.respond({"successful": True})
 
 
 if __name__ == '__main__':
