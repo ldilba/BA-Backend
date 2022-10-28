@@ -23,6 +23,8 @@ app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_REDIS'] = redis.from_url('redis://localhost:6379')
 
+pool = redis.ConnectionPool(host='localhost', port=6379, db=1)
+red = redis.Redis(connection_pool=pool)
 sess = Session(app)
 
 # Influx
@@ -50,7 +52,6 @@ def allowed_file(filename):
 
 @app.route('/', methods=["GET"])
 def index():
-    # session['uid'] = uuid_gen.uuid4()
     return r.respond({"session": str(uuid_gen())})
 
 
@@ -99,14 +100,23 @@ def send():
 
 @app.route('/receive', methods=['POST'])
 def receive():
+    log("info", f"[Server, /receive]: Received from {request.json['service']}: {request.json['message']}", uuid_gen())
 
-    uuid_gen()
-    log("trace", f"[Server, /send]: Received from {request.json['service']}: {request.json['message']}", uuid_gen())
-
-    #todo put into redis db
-    print(request.json)
+    red.set(request.json['uid'], request.json['message'])
 
     return r.respond({"successful": True})
+
+
+@app.route('/poll', methods=['GET'])
+def poll():
+    if red.exists(str(uuid_gen())):
+        response = red.get(str(uuid_gen())).decode('utf-8')
+        log("info", f"[Server, /poll]: Response poll from cache successful", uuid_gen())
+        red.delete(str(uuid_gen()))
+        log("info", f"[Server, /poll]: Deleted cached response", uuid_gen())
+        return r.respond({"successful": True, "response": response})
+    log("warning", f"[Server, /poll]: No cached responses", uuid_gen())
+    return r.respond({"successful": False})
 
 
 @app.route('/log', methods=['POST'])
