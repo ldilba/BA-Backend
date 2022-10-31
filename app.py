@@ -21,10 +21,16 @@ app.secret_key = '|9vpN<gctB6fBvv5MqV5|XMAOE0Qu3'
 
 app.config['SESSION_TYPE'] = 'redis'
 app.config['SESSION_PERMANENT'] = False
-app.config['SESSION_REDIS'] = redis.from_url('redis://localhost:6379')
 
-pool = redis.ConnectionPool(host='localhost', port=6379, db=1)
-red = redis.Redis(connection_pool=pool)
+pool_session = redis.ConnectionPool(host='localhost', port=6379, db=0)
+app.config['SESSION_REDIS'] = redis.Redis(connection_pool=pool_session)
+
+pool_transform = redis.ConnectionPool(host='localhost', port=6379, db=1)
+red_transform = redis.Redis(connection_pool=pool_transform)
+
+pool_response = redis.ConnectionPool(host='localhost', port=6379, db=2)
+red_response = redis.Redis(connection_pool=pool_response)
+
 sess = Session(app)
 
 # Influx
@@ -52,7 +58,7 @@ def allowed_file(filename):
 
 @app.route('/', methods=["GET"])
 def index():
-    return r.respond({"session": str(uuid_gen())})
+    return r.respond({"uid": str(uuid_gen())})
 
 
 @app.route('/upload', methods=['POST'])
@@ -79,40 +85,50 @@ def upload_file():
 
 
 @app.route('/transform', methods=['POST'])
-def transform():
+def transform_route():
     transform_json = request.json
 
     if session['file'] != '':
         file = str(session['file'])
         file = file.split(transform_json['seperator'])
         log("info", "[Server, /transform]: File Transformed", uuid_gen())
+        red_transform.set(str(uuid_gen()), json.dumps(transform_json))
         return r.respond({"fileParts": file})
+
+
+def transform(file, transform_json):
+    transform_json = json.loads(transform_json.decode("utf-8"))
+    messages = file.split(transform_json['seperator'])
+    return messages
 
 
 @app.route('/send', methods=['POST'])
 def send():
-    message = request.json['message']
     service = request.json['service']
-    log("trace", f"[Server, /send]: Send to {service}: {message}", uuid_gen())
-    broker.produce(uuid_gen(), service, message)
+    messages = transform(str(session['file']), red_transform.get(str(uuid_gen())))
+    for m in messages:
+        log("trace", f"[Server, /send]: Send to {service}: {m}", uuid_gen())
+        broker.produce(uuid_gen(), service, m)
     return r.respond({"requestSend": True})
 
 
 @app.route('/receive', methods=['POST'])
 def receive():
     log("info", f"[Server, /receive]: Received from {request.json['service']}: {request.json['message']}", uuid_gen())
-
-    red.set(request.json['uid'], request.json['message'])
-
+    if red_response.exists(request.json['uid']):
+        saved_response = red_response.get(request.json['uid']).decode('utf-8')
+        red_response.set(request.json['uid'], saved_response + "<!-!>" + request.json['message'])
+    else:
+        red_response.set(request.json['uid'], request.json['message'])
     return r.respond({"successful": True})
 
 
 @app.route('/poll', methods=['GET'])
 def poll():
-    if red.exists(str(uuid_gen())):
-        response = red.get(str(uuid_gen())).decode('utf-8')
+    if red_response.exists(str(uuid_gen())):
+        response = red_response.get(str(uuid_gen())).decode('utf-8')
         log("info", f"[Server, /poll]: Response poll from cache successful", uuid_gen())
-        red.delete(str(uuid_gen()))
+        red_response.delete(str(uuid_gen()))
         log("info", f"[Server, /poll]: Deleted cached response", uuid_gen())
         return r.respond({"successful": True, "response": response})
     log("warning", f"[Server, /poll]: No cached responses", uuid_gen())
