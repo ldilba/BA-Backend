@@ -4,14 +4,13 @@ import uuid
 import redis
 from flask import Flask, Blueprint, request, flash, redirect, url_for, session
 from flask_session import Session
+from mysql.connector import pooling
+
 from api import response_generator as r
 import json
 from broker import message_broker as broker
 
 from datetime import datetime
-
-from influxdb_client import InfluxDBClient, Point, WritePrecision
-from influxdb_client.client.write_api import SYNCHRONOUS
 
 ALLOWED_EXTENSIONS = {'txt', 'json'}
 
@@ -33,16 +32,16 @@ red_response = redis.Redis(connection_pool=pool_response)
 
 sess = Session(app)
 
-# Influx
-token = "w-OIV1p_HbWFlEjV_8EFqM5lBL97xyIEXM3IWoFHEXdatEXatLn0ir_IMPRM64-7cL2UKe9X48pMiGLfd2N88Q=="
-org = "conet"
-bucket = "ba_influx"
+# MySQL
+db_conf = {
+    "host": "localhost",
+    "port": 3333,
+    "user": "root",
+    "password": "admin",
+    "database": "db_logs",
+}
 
-with InfluxDBClient(url="http://localhost:8086", token=token, org=org) as client:
-    delete_api = client.delete_api()
-    bucket_api = client.buckets_api()
-    write_api = client.write_api(write_options=SYNCHRONOUS)
-    read_api = client.query_api()
+cnxpool = pooling.MySQLConnectionPool(pool_name="pool", pool_size=2, autocommit=True, **db_conf)
 
 
 def uuid_gen():
@@ -142,19 +141,12 @@ def log_route():
 
 
 def log(level, message, uid):
-    point = Point("logs") \
-        .tag("uid", str(uid)) \
-        .tag("level", level) \
-        .field("message", message) \
-        .time(datetime.utcnow(), WritePrecision.NS)
-
-    write_api.write(bucket, org, point)
-
-
-@app.route('/delete', methods=['POST'])
-def delete():
-    delete_api.delete(start="2010-01-01T00:00:00Z", stop=datetime.now(), bucket=bucket, predicate="")
-    return r.respond({"successful": True})
+    cnx = cnxpool.get_connection()
+    cursor = cnx.cursor()
+    query = f"INSERT INTO logs (`level`, `message`, `timestamp`, `uid`) " \
+            f"VALUES ('{level}', '{message}', '{datetime.utcnow()}', '{str(uid)}')"
+    cursor.execute(query)
+    cnx.close()
 
 
 if __name__ == '__main__':
