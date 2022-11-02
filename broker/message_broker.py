@@ -1,7 +1,10 @@
+import os
 
 import pika
 
-connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+credentials = pika.PlainCredentials('guest', 'guest')
+rabbit_host = os.environ.get('RABBIT_HOST')
+connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, 5672, '/', credentials))
 channel = connection.channel()
 
 
