@@ -2,15 +2,16 @@ from datetime import datetime
 
 from flask import Blueprint, request
 from api import response_generator as r
+from api.token import token_required
 from database.db import cnxpool
-from util.uid import uuid_gen
 
 logs = Blueprint('logs', __name__)
 
 
 @logs.route('/log', methods=['POST'])
-def log_route():
-    log(request.json['level'], request.json['message'], str(uuid_gen()))
+@token_required
+def log_route(uid):
+    log(request.json['level'], request.json['message'], uid)
     return r.respond({"successful": True})
 
 

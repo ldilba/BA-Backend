@@ -2,8 +2,9 @@ from flask import Flask
 
 from api import response_generator as r
 from api.token import encode_token
+from logs.exceptions import exception_handler
 
-from logs.logs import logs
+from logs.logger import logs
 from routes.routes import routes
 from util.uid import uuid_gen
 
@@ -13,8 +14,9 @@ app.register_blueprint(logs)
 
 
 @app.route('/', methods=["GET"])
+@exception_handler("Index")
 def index():
-    token = encode_token({'uid': str(uuid_gen())})
+    token = encode_token({'uid': uuid_gen()})
     return r.respond({"token": token}, cookie=f"Authorization={token}")
 
 

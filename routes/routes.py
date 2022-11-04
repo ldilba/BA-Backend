@@ -3,7 +3,8 @@ import json
 from flask import Blueprint, request
 from api import response_generator as r
 from database.redis_cache import red_upload, red_transform, red_response
-from logs.logs import log
+from logs.exceptions import exception_handler
+from logs.logger import log
 from transform.transform import transform
 from util.filenames import allowed_file
 from util.uid import uuid_gen
@@ -14,9 +15,9 @@ routes = Blueprint('routes', __name__)
 
 
 @routes.route('/upload', methods=['POST'])
+@exception_handler("Upload")
 @token_required
 def upload_file(uid):
-    print(uid)
     # check if the post request has the file part
     if 'file' not in request.files:
         log("warning", "[Server, /upload]: No File Part", uid)
@@ -40,6 +41,7 @@ def upload_file(uid):
 
 
 @routes.route('/transform', methods=['POST'])
+@exception_handler("Transform")
 @token_required
 def transform_route(uid):
     transform_json = request.json
@@ -53,6 +55,7 @@ def transform_route(uid):
 
 
 @routes.route('/send', methods=['POST'])
+@exception_handler("Send")
 @token_required
 def send(uid):
     service = request.json['service']
@@ -64,6 +67,7 @@ def send(uid):
 
 
 @routes.route('/receive', methods=['POST'])
+@exception_handler("Receive")
 def receive():
     log("info", f"[Server, /receive]: Received from {request.json['service']}: {request.json['message']}", uuid_gen())
     if red_response.exists(request.json['uid']):
@@ -75,6 +79,7 @@ def receive():
 
 
 @routes.route('/poll', methods=['GET'])
+@exception_handler("Poll")
 @token_required
 def poll(uid):
     if red_response.exists(uid):
