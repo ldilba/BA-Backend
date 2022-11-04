@@ -1,8 +1,7 @@
 from flask import Flask
-from flask_session import Session
 
 from api import response_generator as r
-from database import redis_cache
+from api.token import encode_token
 
 from logs.logs import logs
 from routes.routes import routes
@@ -12,13 +11,11 @@ app = Flask(__name__)
 app.register_blueprint(routes)
 app.register_blueprint(logs)
 
-redis_cache.set_session(app)
-sess = Session(app)
-
 
 @app.route('/', methods=["GET"])
 def index():
-    return r.respond({"uid": str(uuid_gen())})
+    token = encode_token({'uid': str(uuid_gen())})
+    return r.respond({"token": token}, cookie=f"Authorization={token}")
 
 
 if __name__ == '__main__':
