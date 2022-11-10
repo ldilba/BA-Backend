@@ -16,7 +16,7 @@ app.register_blueprint(logs)
 @app.route('/', methods=["GET"])
 @exception_handler("Index")
 def index():
-    token = encode_token({'uid': uuid_gen()})
+    token = encode_token({'uid': str(uuid_gen())})
     return r.respond({"token": token}, cookie=f"Authorization={token}")
 
 
