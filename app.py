@@ -6,11 +6,13 @@ from logs.exceptions import exception_handler
 
 from logs.logger import logs
 from routes.routes import routes
+from routes.services import services
 from util.uid import uuid_gen
 
 app = Flask(__name__)
 app.register_blueprint(routes)
 app.register_blueprint(logs)
+app.register_blueprint(services)
 
 
 @app.route('/', methods=["GET"])

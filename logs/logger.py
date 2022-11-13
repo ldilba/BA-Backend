@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, request
 from api import response_generator as r
 from api.token import token_required
-from database.db import cnxpool
+from database.db import cnxpool_logs
 
 logs = Blueprint('logs', __name__)
 
@@ -16,7 +16,7 @@ def log_route(uid):
 
 
 def log(level, message, uid):
-    cnx = cnxpool.get_connection()
+    cnx = cnxpool_logs.get_connection()
     cursor = cnx.cursor()
     query = f"INSERT INTO logs (`level`, `message`, `timestamp`, `uid`) " \
             f"VALUES ('{level}', '{message}', '{datetime.utcnow()}', '{str(uid)}')"
