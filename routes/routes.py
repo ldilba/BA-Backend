@@ -47,11 +47,11 @@ def transform_route(uid):
     transform_json = request.json
 
     if red_upload.get(uid) != '':
-        file = red_upload.get(uid).decode('utf-8')
-        file = file.split(transform_json['seperator'])
-        log("info", "[Server, /transform]: File Transformed", uid)
         red_transform.set(uid, json.dumps(transform_json))
-        return r.respond({"fileParts": file})
+        log("info", "[Server, /transform]: Transformation saved", uid)
+        messages = transform(red_upload.get(uid).decode('utf-8'), red_transform.get(uid))
+        log("info", "[Server, /transform]: Messages successfully transformed", uid)
+        return r.respond({"fileParts": messages})
 
 
 @routes.route('/send', methods=['POST'])

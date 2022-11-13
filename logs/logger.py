@@ -18,7 +18,6 @@ def log_route(uid):
 def log(level, message, uid):
     cnx = cnxpool_logs.get_connection()
     cursor = cnx.cursor()
-    query = f"INSERT INTO logs (`level`, `message`, `timestamp`, `uid`) " \
-            f"VALUES ('{level}', '{message}', '{datetime.utcnow()}', '{str(uid)}')"
-    cursor.execute(query)
+    query = f"INSERT INTO logs (`level`, `message`, `timestamp`, `uid`) VALUES (%s, %s, %s, %s)"
+    cursor.execute(query, (level, message, datetime.utcnow(), str(uid)))
     cnx.close()
