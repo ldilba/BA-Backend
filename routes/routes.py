@@ -69,17 +69,23 @@ def transform_route(uid):
 def send(uid):
     service = request.json['service']
     params = request.json['params']
-    print(service, params)
+
     messages = transform(red_upload.get(uid).decode('utf-8'), red_transform.get(uid))
+    expected_responses = len(messages)
+
+    for p in params:
+        if "search_size" in p.values():
+            expected_responses *= int(p["value"])
+
     for m in messages:
         log("trace", f"[Server, /send]: Send to {service}: {m}", uid)
-        broker.produce(uid, service, m)
-    return r.respond({"success": True, "messages": len(messages)})
+        broker.produce(uid, service, m, params)
+    return r.respond({"success": True, "messages": expected_responses})
 
 
 @exception_handler("Receive")
 def receive(message):
-    log("info", f"[Server, /receive]: Received from {message['service']}: {message['message']}", uuid_gen())
+    log("info", f"[Server, /receive]: Received answer from {message['service']}", uuid_gen())
     if red_response.exists(message['uid']):
         saved_response = red_response.get(message['uid']).decode('utf-8')
         red_response.set(message['uid'], saved_response + "<!-!>" + json.dumps(message['message']))
@@ -96,6 +102,10 @@ def poll(uid):
     if red_response.exists(uid):
         response = red_response.get(uid).decode('utf-8')
         response_messages = response.split('<!-!>')
+
+        for i in range(len(response_messages)):
+            response_messages[i] = json.loads(response_messages[i])
+
         log("info", f"[Server, /poll]: Response poll from cache successful", uid)
         red_response.delete(uid)
         log("info", f"[Server, /poll]: Deleted cached response", uid)

@@ -9,20 +9,19 @@ credentials = pika.PlainCredentials('guest', 'guest')
 rabbit_host = os.environ.get('RABBIT_HOST')
 
 
-def produce(uid, service, message):
+def produce(uid, service, query, params):
     connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, 5672, '/', credentials))
     channel = connection.channel()
     channel.queue_declare(queue=service)
 
     channel.basic_publish(exchange='',
                           routing_key=service,
-                          body=f'{{"uid": "{uid}", "service": "{service}", "message": "{message}"}}'.encode('utf-8'))
+                          body=f'{{"uid": "{uid}", "service": "{service}", "query": "{query}", "params":{json.dumps(params)}}}'.encode('utf-8'))
     channel.close()
     connection.close()
 
 
 def callback(ch, method, properties, body: bytes):
-    print(body.decode('utf-8'))
     received = json.loads(body.decode('utf-8'))
     routes.receive(received)
 
