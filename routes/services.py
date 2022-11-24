@@ -19,7 +19,7 @@ def service_list():
     res = cursor.fetchall()
     services_list = []
     for x in res:
-        services_list.append({"service": x[0], "displayName": x[1]})
+        services_list.append({"service": x[0], "name": x[1]})
     cnx.close()
     log("info", f"[Server, /service [GET]]: List {len(services_list)} services", "")
     return r.respond({"services": services_list})

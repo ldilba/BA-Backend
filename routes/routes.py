@@ -14,8 +14,8 @@ from api.token import token_required
 routes = Blueprint('routes', __name__)
 
 
-@routes.route('/upload', methods=['POST'])
-@exception_handler("Upload")
+@routes.route('/upload/file', methods=['POST'])
+@exception_handler("Upload file")
 @token_required
 def upload_file(uid):
     # check if the post request has the file part
@@ -37,7 +37,16 @@ def upload_file(uid):
         log("warning", "[Server, /upload]: Filetype Not Allowed", uid)
         return r.respond({"success": False, "status": "Filetype Not Allowed"}, 400)
 
-    return r.respond({"file": red_upload.get(uid).decode('utf-8')})
+    return r.respond({"success": True, "content": red_upload.get(uid).decode('utf-8')})
+
+
+@routes.route('/upload/text', methods=['POST'])
+@exception_handler("Upload Text")
+@token_required
+def upload_text(uid):
+    body = request.json
+    red_upload.set(uid, body['text'])
+    return r.respond({"success": True, "content": body['text']})
 
 
 @routes.route('/transform', methods=['POST'])
@@ -51,7 +60,7 @@ def transform_route(uid):
         log("info", "[Server, /transform]: Transformation saved", uid)
         messages = transform(red_upload.get(uid).decode('utf-8'), red_transform.get(uid))
         log("info", "[Server, /transform]: Messages successfully transformed", uid)
-        return r.respond({"fileParts": messages})
+        return r.respond({"success": True, "messages": messages})
 
 
 @routes.route('/send', methods=['POST'])
@@ -59,22 +68,24 @@ def transform_route(uid):
 @token_required
 def send(uid):
     service = request.json['service']
+    params = request.json['params']
+    print(service, params)
     messages = transform(red_upload.get(uid).decode('utf-8'), red_transform.get(uid))
     for m in messages:
         log("trace", f"[Server, /send]: Send to {service}: {m}", uid)
         broker.produce(uid, service, m)
-    return r.respond({"requestSend": True})
+    return r.respond({"success": True, "messages": len(messages)})
 
 
-@routes.route('/receive', methods=['POST'])
 @exception_handler("Receive")
-def receive():
-    log("info", f"[Server, /receive]: Received from {request.json['service']}: {request.json['message']}", uuid_gen())
-    if red_response.exists(request.json['uid']):
-        saved_response = red_response.get(request.json['uid']).decode('utf-8')
-        red_response.set(request.json['uid'], saved_response + "<!-!>" + request.json['message'])
+def receive(message):
+    log("info", f"[Server, /receive]: Received from {message['service']}: {message['message']}", uuid_gen())
+    if red_response.exists(message['uid']):
+        saved_response = red_response.get(message['uid']).decode('utf-8')
+        red_response.set(message['uid'], saved_response + "<!-!>" + json.dumps(message['message']))
     else:
-        red_response.set(request.json['uid'], request.json['message'])
+        red_response.set(message['uid'], json.dumps(message['message']))
+
     return r.respond({"successful": True})
 
 

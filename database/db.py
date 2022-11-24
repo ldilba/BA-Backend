@@ -13,7 +13,7 @@ db_conf = {
 }
 
 try:
-    cnxpool_logs = pooling.MySQLConnectionPool(pool_name="pool", pool_size=2, autocommit=True, database="db_logs", **db_conf)
+    cnxpool_logs = pooling.MySQLConnectionPool(pool_name="pool", pool_size=10, autocommit=True, database="db_logs", **db_conf)
     cnxpool_services = pooling.MySQLConnectionPool(pool_name="pool", pool_size=2, autocommit=True, database="db_logs", **db_conf)
 
 except Exception as e:
