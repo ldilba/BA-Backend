@@ -23,6 +23,7 @@ def produce(uid, service, query, params):
 
 def callback(ch, method, properties, body: bytes):
     received = json.loads(body.decode('utf-8'))
+    print(received)
     routes.receive(received)
 
 

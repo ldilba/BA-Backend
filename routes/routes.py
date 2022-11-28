@@ -46,6 +46,7 @@ def upload_file(uid):
 def upload_text(uid):
     body = request.json
     red_upload.set(uid, body['text'])
+    log("info", "[Server, /upload]: Text Uploaded", uid)
     return r.respond({"success": True, "content": body['text']})
 
 

@@ -38,6 +38,13 @@ def start_broker():
 
 if __name__ == '__main__':
     thread_server = threading.Thread(target=start_server, daemon=True).start()
-    thread_broker = threading.Thread(target=start_broker, daemon=True).start()
+
+    thread_running = False
+    while not thread_running:
+        print("Start receiving thread...")
+        thread_broker = threading.Thread(target=start_broker, daemon=True).start()
+        thread_running = True
+        print("Receiving thread running.")
+
     while True:
         time.sleep(1)
